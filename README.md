@@ -1,37 +1,10 @@
 # khinse-labs/workflows
 
-Reusable GitHub Actions workflows and actions for khinse-labs repositories. Fix CI once here and every repository that calls it picks it up.
-
-## Node CI
-
-Checks out, sets up Node and pnpm, installs, then runs pnpm scripts in order.
-
-```yaml
-# .github/workflows/ci.yml in your repository
-name: CI
-
-on:
-  push:
-    branches: [main]
-  pull_request:
-
-jobs:
-  ci:
-    uses: khinse-labs/workflows/.github/workflows/node-ci.yml@v1
-    with:
-      scripts: verify build
-```
-
-| Input | Default | |
-| --- | --- | --- |
-| `scripts` | `lint typecheck test` | Space-separated pnpm scripts, run in order |
-| `lfs` | `false` | Fetch Git LFS files on checkout |
-| `node-version-file` | `.node-version` | File holding the Node version |
-| `timeout-minutes` | `20` | Job timeout |
+Shared GitHub Actions for khinse-labs repositories. Fix CI setup once here and every repository that uses it picks it up.
 
 ## Set up Node and pnpm
 
-A composite action for your own jobs (deploys, releases). Installs pnpm from `packageManager` in `package.json`, Node from `.node-version`, restores the pnpm cache and runs `pnpm install --frozen-lockfile`. Check out first.
+A composite action to call from your own CI and deploy jobs, before your repository's own steps. Installs pnpm from `packageManager` in `package.json`, Node from `.node-version`, restores the pnpm cache and runs `pnpm install --frozen-lockfile`. Check out first.
 
 ```yaml
 steps:
