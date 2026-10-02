@@ -1,0 +1,57 @@
+name: Node CI
+
+# Reusable CI for Node + pnpm repositories: checks out, sets up Node and pnpm, installs,
+# then runs the given pnpm scripts in order.
+#
+#   jobs:
+#     ci:
+#       uses: khinse-labs/workflows/.github/workflows/node-ci.yml@v1
+#       with:
+#         scripts: verify build
+
+on:
+  workflow_call:
+    inputs:
+      scripts:
+        description: Space-separated pnpm scripts to run, in order.
+        type: string
+        default: lint typecheck test
+      lfs:
+        description: Whether to fetch Git LFS files on checkout.
+        type: boolean
+        default: false
+      node-version-file:
+        description: File holding the Node version.
+        type: string
+        default: .node-version
+      timeout-minutes:
+        description: Job timeout.
+        type: number
+        default: 20
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    name: CI
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ inputs.timeout-minutes }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          lfs: ${{ inputs.lfs }}
+
+      - uses: khinse-labs/workflows/actions/setup-node-pnpm@v1
+        with:
+          node-version-file: ${{ inputs.node-version-file }}
+
+      - name: Run scripts
+        env:
+          SCRIPTS: ${{ inputs.scripts }}
+        run: |
+          for script in $SCRIPTS; do
+            echo "::group::pnpm run $script"
+            pnpm run "$script"
+            echo "::endgroup::"
+          done
