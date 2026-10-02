@@ -36,6 +36,8 @@ A composite action for your own jobs (deploys, releases). Installs pnpm from `pa
 ```yaml
 steps:
   - uses: actions/checkout@v7
+    with:
+      persist-credentials: false
   - uses: khinse-labs/workflows/actions/setup-node-pnpm@v1
   - run: pnpm build
 ```

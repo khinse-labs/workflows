@@ -22,6 +22,7 @@ runs:
         node-version-file: ${{ inputs.node-version-file }}
         cache: pnpm
 
-    - if: inputs.install == 'true'
+    - name: Install
+      if: inputs.install == 'true'
       shell: bash
       run: pnpm install --frozen-lockfile
