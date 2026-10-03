@@ -1,0 +1,104 @@
+name: Release
+
+# Cuts the next version of the calling repository from its Conventional Commits: git-cliff picks
+# the version and writes the notes with the shared cliff.toml in khinse-labs/.github, then this
+# tags the commit and publishes a GitHub release. Skips the release when every unreleased commit is
+# tooling or process (chore, ci, build, style, test, spike), unless one of them is breaking.
+#
+# Call it from a workflow_dispatch workflow, so a release stays a deliberate click:
+#
+#   on:
+#     workflow_dispatch:
+#   jobs:
+#     release:
+#       uses: khinse-labs/workflows/.github/workflows/release.yml@<sha> # v1.2.0
+#       permissions:
+#         contents: write
+#
+# Tags and releases made with the job's GITHUB_TOKEN do not start other workflows, so a deploy that
+# runs on tag pushes needs a GitHub App token instead.
+
+on:
+  workflow_call:
+    inputs:
+      bump:
+        description: auto (from the commits), major, minor or patch
+        type: string
+        default: auto
+      major-tag:
+        description: Also move the major tag (v1) to the release, for actions and reusable workflows.
+        type: boolean
+        default: false
+      config-ref:
+        description: Tag of khinse-labs/.github to read cliff.toml from. Its v* tags are immutable.
+        type: string
+        default: v1.1.0
+    outputs:
+      version:
+        description: The released version, or empty when nothing was released.
+        value: ${{ jobs.release.outputs.version }}
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    outputs:
+      version: ${{ steps.release.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          version: "0.12.7"
+
+      - name: Release
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BUMP: ${{ inputs.bump }}
+          MAJOR_TAG: ${{ inputs.major-tag }}
+          CONFIG_URL: https://raw.githubusercontent.com/khinse-labs/.github/${{ inputs.config-ref }}/cliff.toml
+        run: |
+          case $BUMP in auto | major | minor | patch) ;; *)
+            echo "::error::bump must be auto, major, minor or patch, not $BUMP"
+            exit 1
+          esac
+          # git-cliff from PyPI, where a version can never be replaced, through uv as in the local hooks.
+          cliff() { uvx --quiet git-cliff@2.14.2 --config-url "$CONFIG_URL" "$@"; }
+
+          # Commits outside group 9 (tooling and process). A breaking commit is always in group 0.
+          user_facing=$(cliff --unreleased --context |
+            jq '[.[0].commits[]? | select(.group | startswith("<!-- 9 -->") | not)] | length')
+          if [ "$BUMP" = auto ] && [ "$user_facing" -eq 0 ]; then
+            echo "::notice::Nothing to release: the unreleased commits are all tooling or process."
+            exit 0
+          fi
+
+          version=$(cliff --bumped-version --bump "$BUMP")
+          if gh release view "$version" >/dev/null 2>&1; then
+            echo "::error::$version is already released."
+            exit 1
+          fi
+          cliff --unreleased --bump "$BUMP" --strip all --output "$RUNNER_TEMP/notes.md"
+
+          gh release create "$version" --target "$GITHUB_SHA" --title "$version" \
+            --notes-file "$RUNNER_TEMP/notes.md"
+          echo "version=$version" >>"$GITHUB_OUTPUT"
+          echo "Released $version" >>"$GITHUB_STEP_SUMMARY"
+
+          if [ "$MAJOR_TAG" = true ]; then
+            major=${version%%.*}
+            gh api --method PATCH "repos/$GITHUB_REPOSITORY/git/refs/tags/$major" \
+              -f sha="$GITHUB_SHA" -F force=true >/dev/null 2>&1 ||
+              gh api --method POST "repos/$GITHUB_REPOSITORY/git/refs" \
+                -f ref="refs/tags/$major" -f sha="$GITHUB_SHA" >/dev/null
+            echo "Moved $major to $version" >>"$GITHUB_STEP_SUMMARY"
+          fi
