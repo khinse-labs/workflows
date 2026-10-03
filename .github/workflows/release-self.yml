@@ -1,0 +1,24 @@
+name: Release this repository
+
+# Run from the Actions tab. Releases this repository with its own release workflow, and moves the
+# major tag (v1) that callers use.
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: Version bump
+        type: choice
+        options: [auto, patch, minor, major]
+        default: auto
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    uses: ./.github/workflows/release.yml
+    permissions:
+      contents: write
+    with:
+      bump: ${{ inputs.bump }}
+      major-tag: true
