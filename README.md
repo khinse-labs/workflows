@@ -8,10 +8,10 @@ A composite action to call from your own CI and deploy jobs, before your reposit
 
 ```yaml
 steps:
-  - uses: actions/checkout@v7
+  - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
     with:
       persist-credentials: false
-  - uses: khinse-labs/workflows/actions/setup-node-pnpm@v1
+  - uses: khinse-labs/workflows/actions/setup-node-pnpm@4134aa05f5ac843d4037a77890f1b3a7e91037df # v1.2.0
   - run: pnpm build
 ```
 
@@ -29,7 +29,7 @@ on:
 
 jobs:
   release:
-    uses: khinse-labs/workflows/.github/workflows/release.yml@<sha> # v1.2.0
+    uses: khinse-labs/workflows/.github/workflows/release.yml@4134aa05f5ac843d4037a77890f1b3a7e91037df # v1.2.0
     permissions:
       contents: write
 ```
@@ -40,7 +40,7 @@ Releases made with the job's `GITHUB_TOKEN` do not start other workflows: a depl
 
 ## Versions
 
-Call a major tag (`@v1`). Compatible changes move the `v1` tag; breaking changes get `v2`. This repository releases itself with [release-self.yml](.github/workflows/release-self.yml).
+khinse-labs requires every action to be pinned to a full commit SHA, so call a release by its commit with the version in a comment, as above. Each release is a `vX.Y.Z` tag, and the major tag (`v1`) follows the latest compatible release; breaking changes get `v2`. This repository releases itself with [release-self.yml](.github/workflows/release-self.yml).
 
 ## Licence
 
